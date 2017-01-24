@@ -60,8 +60,12 @@ function addSubscription()
   local red = redis.init(REDIS_HOST, REDIS_PORT, REDIS_PASS, 10000)
   ngx.req.read_body()
   local args = ngx.req.get_body_data()
-  local redisKey = validateSubscriptionBody(red,args)
+  
+  local accessToken = ngx.var[utils.concatStrings({'http_', 'Authorization'}):gsub("-", "_")]
+  
+  local redisKey = _M.validateSubscriptionBody(red,args, accessToken)
   -- Open connection to redis or use one from connection pool
+
   redis.createSubscription(red, redisKey)
   -- Add current redis connection in the ngx_lua cosocket connection pool
   redis.close(red)
@@ -82,8 +86,11 @@ function deleteSubscription()
   -- Validate body and create redisKey
   local red = redis.init(REDIS_HOST, REDIS_PORT, REDIS_PASS, 10000)
   ngx.req.read_body()
-  local args = ngx.req.get_body_data()
-  local redisKey = validateSubscriptionBody(red, args)
+  local args = ngx.req.get_body_data() 
+
+  local accessToken = ngx.var[utils.concatStrings({'http_', 'Authorization'}):gsub("-", "_")]
+  
+  local redisKey = _M.validateSubscriptionBody(red, args, accessToken)
   -- Initialize and connect to redis
   -- Return if subscription doesn't exist
   redis.deleteSubscription(red, redisKey)
@@ -94,7 +101,7 @@ end
 
 --- Check the request JSON body for correct fields
 -- @return redisKey subscription key for redis
-function validateSubscriptionBody(red, args)
+_M.validateSubscriptionBody = function(red, args, accessToken)
   -- Read in the PUT JSON Body
   if not args then
     request.err(400, "Missing request body.")
@@ -102,7 +109,7 @@ function validateSubscriptionBody(red, args)
   -- Convert json into Lua table
   local decoded = cjson.decode(args)
   -- Check required fields
-  local res, err = utils.tableContainsAll(decoded, {"key", "scope", "tenantId"})
+  local res, err = utils.tableContainsAll(decoded, {"scope", "tenantId"})
   if res == false then
     request.err(err.statusCode, err.message)
   end
@@ -128,7 +135,14 @@ function validateSubscriptionBody(red, args)
   else
     request.err(400, "Invalid scope")
   end
-  redisKey = utils.concatStrings({redisKey, ":key:", decoded.key})
+
+  if accessToken == nil then
+    redisKey = utils.concatStrings({redisKey, ":key:", decoded.key})
+  else 
+    local oauth = require('policies/security/oauth')
+    local token = oauth.exchange(red, accessToken, 'google') 
+    redisKey = utils.concatStrings({redisKey, ":oauth:", token.email})
+  end
   return redisKey
 end
 

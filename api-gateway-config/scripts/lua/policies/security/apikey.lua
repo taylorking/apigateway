@@ -51,6 +51,7 @@ function validate(red, tenant, gatewayPath, apiId, scope, apiKey)
     k = utils.concatStrings({'subscriptions:tenant:', tenant, ':api:', apiId})
   end
   k = utils.concatStrings({k, ':key:', apiKey})
+  print('k: ' .. k)
   local exists = red:exists(k)
   redis.close(red)
   return exists == 1
@@ -59,8 +60,8 @@ end
 --- Process the security object
 -- @param securityObj security object from nginx conf file
 -- @return apiKey api key for the subscription
-function process(red, tenant, gatewayPath, apiId, scope, apiKey, securityObj)
-  local header = (securityObj.header == nil) and 'x-api-key' or securityObj.header
+function process(red, tenant, gatewayPath, apiId, scope, apiKey, accessToken, securityObj)
+  
   if not apiKey then
     request.err(401, utils.concatStrings({'API key header "', header, '" is required.'}))
   end

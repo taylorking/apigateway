@@ -57,7 +57,6 @@ describe('Testing Request module', function()
   end)
 end)
 
-
 describe('Testing utils module', function()
   before_each(function()
     _G.ngx = fakengx.new()
@@ -215,14 +214,13 @@ describe('Testing Redis module', function()
   end)
 
   it('shoud create an API Key subscription', function()
-    local key = 'subscriptions:test:apikey'
+    local key = 'subscriptions:test:key:apikey'
     redis.createSubscription(red, key)
     assert.are.same(true, red:exists(key))
   end)
-
   it('should delete an API Key subscription', function()
     -- API key doesn't exist in redis - throw 404
-    local key = 'subscriptions:test:apikey'
+    local key = 'subscriptions:test:key:apikey'
     redis.deleteSubscription(red, key)
     assert.are.equal(404, ngx._exit)
 
@@ -231,6 +229,52 @@ describe('Testing Redis module', function()
     redis.deleteSubscription(red, key)
     assert.are.equal(false, red:exists(key))
   end)
+  it('should validate an OAuth subscription', function () 
+    local obj = [[
+        {
+          "tenantId":"test",
+          "apiId":"test",
+          "scope":"api"
+        }
+      ]]
+    
+    local subscriptions = require('management/subscriptions')
+    local key = subscriptions.validateSubscriptionBody(red, obj, 'test')
+    assert.are.same(key, 'subscriptions:tenant:test:api:test:oauth:test')
+  end)
+
+  it('should delete an OAuth subscription', function () 
+
+
+  end)
+end)
+
+describe('Security Policies', function() 
+  local red = fakeredis.new()
+  it('should correctly validate an oauth token', function() 
+    local oauth = require('policies/security/oauth')
+    local securityObj = [[{
+          "type":"oauth",
+          "provider":"mock",
+          "scope":"api"
+    }]]
+    securityObj = cjson.decode(securityObj)
+    local token = oauth.process(red, 'test', '', 'test', 'api', '', 'test', securityObj) 
+    assert.are.same(token.email, 'test')
+    -- make sure it's caching tokens correctly
+    assert.are.same(red:exists('oauth:providers:mock:tokens:test'), true)
+  end) 
+   it('shouldn\'t explode when you forget to pass a token', function()
+    local oauth = require('policies/security/oauth')
+    local securityObj = [[{
+          "type":"oauth",
+          "provider":"mock",
+          "scope":"api"
+    }]]
+    securityObj = cjson.decode(securityObj)
+    local token = oauth.process(red, 'test', '', 'test', 'api', '','', securityObj) 
+    assert.are.same(token, nil)
+   end)
 
 end)
 
