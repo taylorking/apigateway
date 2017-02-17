@@ -34,11 +34,11 @@ Example
 
 This will create two API keys for the API, which will need to be supplied in the `test` and `secret` headers, respectively.
 
-## OAuth (`oauth`)
+## OAuth (`oauth2`)
 
 Perform token introspection for various social login providers and enforce token validation on that basis
 
-- **type**: `oauth`
+- **type**: `oauth2`
 - **scope**: `api`, `tenant`, `resource`
 - **provider** which oauth token provider to use (facebook, google, github) 
 
@@ -51,7 +51,7 @@ Example
     "header":"test"
   },
   {
-    "type":"oauth", 
+    "type":"oauth2", 
     "scope":"api",
     "provider":"google"
   }
