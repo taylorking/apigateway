@@ -15,7 +15,7 @@ Enforce API calls to include an API Key.
 - **header** (optional): custom name of auth header (default is `x-api-key`)
 - **hashed** (optional): `true`, `false`
 
-Example
+Example:
 ```
 "security":[
   {
@@ -34,6 +34,7 @@ Example
 
 This will create two API keys for the API, which will need to be supplied in the `test` and `secret` headers, respectively.
 
+
 ## OAuth (`oauth2`)
 
 Perform token introspection for various social login providers and enforce token validation on that basis
@@ -42,7 +43,8 @@ Perform token introspection for various social login providers and enforce token
 - **scope**: `api`, `tenant`, `resource`
 - **provider** which oauth token provider to use (facebook, google, github) 
 
-Example
+Example:
+
 ``` 
 "security":[
   {
@@ -58,4 +60,5 @@ Example
 ]
 ```
 
-This will require that an apikey is supplied in the `test` header, and a valid google OAuth token must be specified in the `authorization` header
+This will require that an apikey is supplied in the `test` header, and a valid google OAuth token must be specified in the `authorization` header.
+
