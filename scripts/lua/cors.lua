@@ -39,7 +39,7 @@ function processCall(tenant, gatewayPath)
     return nil, nil
   end 
 
-  local apiConfig = red:hget('apis', resourceConfig.apiId)
+  local apiConfig = red:hget(utils.concatStrings({'apis:', tenant}), resourceConfig.apiId)
   if apiConfig == ngx.null then
     return nil, nil
   end
