@@ -114,7 +114,7 @@ function validate(red, tenant, gatewayPath, apiId, scope, clientId, clientSecret
   end
   -- using the same key location in redis, just using :clientsecret: instead of :key: 
   k = utils.concatStrings({k, ':clientsecret:', clientId, ':', clientSecret})
-  local exists = red:exists(k)
+  local exists = redis.exists(red, k)
   return exists == 1
 end
 _M.processWithHashFunction = processWithHashFunction
