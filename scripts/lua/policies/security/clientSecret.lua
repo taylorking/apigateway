@@ -117,6 +117,9 @@ function validate(red, tenant, gatewayPath, apiId, scope, clientId, clientSecret
   end
   -- using the same key location in redis, just using :clientsecret: instead of :key: 
   k = utils.concatStrings({k, ':clientsecret:', clientId, ':', clientSecret})
+  
+  print('Looking for secret key: ' .. k)
+  
   if redis.exists(red, k) == 1 then
     return k 
   else 
