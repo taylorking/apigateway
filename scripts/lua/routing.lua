@@ -50,10 +50,14 @@ function _M.processCall()
   if ngx.req.get_headers()["x-debug-mode"] == "true" then
     setRequestLogs()
   end
-  local resourceKeys = redis.getAllResourceKeys(red, tenantId)
-  local redisKey = _M.findRedisKey(resourceKeys, tenantId, gatewayPath)
-  if redisKey == nil then
-    request.err(404, 'Not found.')
+  local redisKey = _M.optimizedRedisLookup(red, tenantId, gatewayPath)
+  if redisKey == nil then -- try a fast lookup, if that fails do a slow lookup. 
+    local resourceKeys = redis.getAllResourceKeys(red, tenantId)
+    local redisKey = _M.findRedisKey(resourceKeys, tenantId, gatewayPath)
+    if redisKey == nil then
+      request.err(404, 'Not found.')
+    end
+    _M.optimizeRedisLookup(red, tenantId, redisKey, gatewayPath)
   end
   local obj = cjson.decode(redis.getResource(red, redisKey, "resources"))
   cors.processCall(obj)
@@ -93,6 +97,58 @@ function _M.processCall()
   request.err(404, 'Whoops. Verb not supported.')
 end
 
+function _M.optimizedRedisLookup(red, tenant, path) 
+  local currStr = utils.concatStrings({'fastmap:', tenant})
+  path = string.match(path, '[^?]*')
+  local exp_path = string.gmatch(path, '[^/]*')
+  for i in exp_path do 
+    if redis.exists(red, utils.concatStrings({currStr, '/', i})) == 1 then
+      currStr = utils.concatStrings({curr, '/', i}) 
+    elseif redis.exists(red, utils.concatStrings({currStr,'/.*'})) == 1 then
+      currStr = utils.concatStrings({currStr, '/.*'})
+    else 
+      return nil
+    end
+  end
+  return redis.get(red, currStr)
+end
+
+function _M.optimizeRedisLookup(red, tenant, resourceKey, pathStr) 
+  local startingString = utils.concatStrings({'fastmap:', tenant})
+  if redis.get(red, startingString) == nil then 
+    redis.set(red, startingString, '') 
+  end
+  path = {} 
+  key = {} 
+  for p in string.gmatch(pathStr, '[^/]*') do
+    if p ~= '' then 
+      table.insert(path, p)
+    end
+  end
+
+  resourceKey = string.gsub(resourceKey, utils.concatStrings({"resources:", tenant, ":"}), '')
+  for r in string.gmatch(resourceKey, '[^/]*') do
+    if r ~= '' then 
+      table.insert(key, r)
+    end
+  end
+  count = 0
+  for i, v in ipairs(path) do 
+    if path[count] == key[count] then
+      startingString = utils.concatStrings({startingString, '/', key[count]})
+      if (redis.exists(red, startingString)) == 0 then
+        redis.set(red, startingString, '')
+      end
+    else
+      startingString = utils.concatStrings({startingString, '/.*'})
+      if (redis.exists(red,startingString) == 0) then
+        redis.set(red, startingString, '')
+      end
+    end
+    count = count + 1
+  end
+  redis.set(red, startingString, resourceKey)
+end
 --- Find the correct redis key based on the path that's passed in
 -- @param resourceKeys list of resourceKeys to search through
 -- @param tenant tenantId
